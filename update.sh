@@ -22,15 +22,21 @@ set -e
 EXIST_HOME=/Users/aretter/NetBeansProjects/exist-git
 EXIST_TAG=3.0.RC1
 MVN_REPO_HOME=/Users/aretter/NetBeansProjects/mvn-repo
+ARTIFACT_BASE="exist"
 TMP_DIR=/tmp
 
 
 
 function mavenise {
+	if [ ! -f "$1" ] ; then
+		echo 1>&2 FILE DOES NOT EXIST: $1
+		return
+	fi
 	OUT_DIR="${MVN_REPO_HOME}/org/exist-db/${2}/${EXIST_TAG}"
 	mkdir -p $OUT_DIR
 
-	OUT_FILE="${OUT_DIR}/${2}-${EXIST_TAG}.jar"
+	CLASSIFIER="${3:+-}$3"
+	OUT_FILE="${OUT_DIR}/${2}-${EXIST_TAG}${CLASSIFIER}.jar"
 	cp -v $1 $OUT_FILE
 	openssl sha1 -r "${OUT_FILE}" | sed 's/\([a-f0-9]*\).*/\1/' > "${OUT_FILE}.sha1"
 }
@@ -40,12 +46,19 @@ cd $EXIST_HOME
 # Checkout and build the tag for the release version
 git checkout "tags/eXist-${EXIST_TAG}"
 ./build.sh clean
+[ -f build/scripts/build-sourcejars.xml ] && ./build.sh -f build/scripts/build-sourcejars.xml clean
 ./build.sh
+[ -f build/scripts/build-sourcejars.xml ] && ./build.sh -f build/scripts/build-sourcejars.xml sourcejars
 
 # Mavenise the root jar files
-mavenise exist.jar exist-core
-mavenise start.jar exist-start
-mavenise exist-optional.jar exist-optional
+mavenise exist.jar ${ARTIFACT_BASE}-core
+mavenise exist-sources.jar ${ARTIFACT_BASE}-core sources
+mavenise start.jar ${ARTIFACT_BASE}-start
+mavenise start-sources.jar ${ARTIFACT_BASE}-start sources
+mavenise exist-optional.jar ${ARTIFACT_BASE}-optional
+mavenise exist-optional-sources.jar ${ARTIFACT_BASE}-optional sources
+
+mavenise xquery-modules-sources.jar ${ARTIFACT_BASE}-xquery-modules sources
 
 # Mavenise each of the extension modules
 for f in lib/extensions/exist-*.jar
