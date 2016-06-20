@@ -36,9 +36,19 @@ function mavenise {
 	mkdir -p $OUT_DIR
 
 	CLASSIFIER="${3:+-}$3"
-	OUT_FILE="${OUT_DIR}/${2}-${EXIST_TAG}${CLASSIFIER}.jar"
+	FILE_BASE="${OUT_DIR}/${2}-${EXIST_TAG}"
+	OUT_FILE="${FILE_BASE}${CLASSIFIER}.jar"
 	cp -v $1 $OUT_FILE
 	openssl sha1 -r "${OUT_FILE}" | sed 's/\([a-f0-9]*\).*/\1/' > "${OUT_FILE}.sha1"
+
+	if [[ -n "$MVN_REPOSITORY_ID" && -n "$MVN_REPOSITORY_URL" ]]; then
+		if [[ -f "${FILE_BASE}.pom" ]] ; then
+			echo Deploying "$OUT_FILE"
+			mvn deploy:deploy-file -DrepositoryId="$MVN_REPOSITORY_ID" -Durl="$MVN_REPOSITORY_URL" -DpomFile="${FILE_BASE}.pom" -Dfile="$OUT_FILE" -Dclassifier="$3"
+		else
+			echo 1>&2 Missing POM file '"'${FILE_BASE}.pom'"', not deploying
+		fi
+	fi
 }
 
 cd $EXIST_HOME
